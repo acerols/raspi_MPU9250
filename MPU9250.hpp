@@ -7,6 +7,8 @@ extern "C"{
 #define MPU9250_PWR_MGMT_1 0x6B
 #define MPU9250_INT_PIN_CFG 0x37
 #define MPU9250_MAG_CNTL 0x0A
+#define MPU9250_MAG_WIA 0x00
+#define MPU9250_MAG_HXL 0x03
 #define MPU9250_ACCEL_XOUT_H 0x3B
 #define MPU9250_GYRO_CONFIG 0x1B
 #define MPU9250_ACCEL_CONFIG 0x1C
@@ -58,26 +60,36 @@ typedef enum{
 
 class MPU9250{
 private:
+	uint8_t dev_addr;
+	uint8_t dev_addr_mag;
 	int fd;
+	int magRange;
+	double magCoefficient16;
 	unsigned char Reg_Conf, Reg_GyroConf, Reg_AccConf, Reg_AccConf2;
+	int write(uint8_t reg_addr, uint8_t *data, uint16_t length);
+	int read(uint8_t reg_addr, uint8_t *data, uint16_t length);
+	int writeMag(uint8_t reg_addr, uint8_t *data, uint16_t length);
+	int readMag(uint8_t reg_addr, uint8_t *data, uint16_t length);
+
 
 public:
-	MPU9250();
+	MPU9250(const char *DEV_NAME);
 	~MPU9250();
 	int CheckConnection();
 	int Init();
+	
 	int ReadData(struct timeval* tim, short acc[], short rot[], short* temp);
 	int ReadData(short acc[], short rot[], short* temp);
 	int SetAccFullScale(AccFS_t);
 	int SetGyroFullScale(GyroFS_t);
 	int SetAccRate(AccRate_t);
 	int SetGyroRate(GyroRate_t);
-
+	
 	int isDataReady_Mag();
 	int CheckConnection_Mag();
-	int ReadData_Mag(short mag[]);
+	int ReadData_Mag(int mag[]);
+	void Magfix(int mag[], double fix[]);
 
-    int open();
 };
 
 #endif

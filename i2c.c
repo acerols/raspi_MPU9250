@@ -178,8 +178,6 @@ int isDataReadyMag()
 
     ret = i2c_read(I2C_ADDR_MAG, MPU9250_MAG_ST1, &data, 1);
 
-    printf("isDataReady Mag %x\n", data);
-
     if(data & (0x01)){
         return 1;
     }
@@ -193,8 +191,6 @@ int CheckConnMag()
     int ret;
 
     ret = i2c_read(I2C_ADDR_MAG, MPU9250_MAG_WIA, &data, 1);
-
-    printf("MAG WIA DATA %x\n", data);
 
     if(data == 0x48){
         return 1;
@@ -244,6 +240,10 @@ int main()
     short mag[3];
     int magcheck;
     int magready;
+    int maxMagx = -9999999;
+    int maxMagy = -9999999;
+    int minMagx = 9999999;
+    int minMagy = 9999999;
     uint16_t len;
     if(CheckConn() == -1){
         return -1;
@@ -253,13 +253,19 @@ int main()
     printf("Mag Check %x\n", magcheck);
     magready = isDataReadyMag();
     printf("Mag Ready %x\n", magready);
-    
+
+
+
     if(ReadData(acc, rot, mag, &temp) == 0){
         printf("Mag1 : %d, Mag2 : %d, Mag3 : %d\n", mag[0], mag[1], mag[2]);
     }
-
-    atan2f(0.0, 0.0);
-    printf("yaw %f", atan2(mag[1], mag[2]));
+    while(1){
+        if(CheckConnMag() == 1){
+            ReadData(acc, rot, mag, &temp);
+            printf("Mag1 : %d, Mag2 : %d, Mag3 : %d\n", mag[0], mag[1], mag[2]);
+        }
+    }
+    printf("Mag1 : %d, Mag2 : %d, Mag3 : %d\n", mag[0], mag[1], mag[2]);
 
     /*
     if(CheckConnMag() == 1){

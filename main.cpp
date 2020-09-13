@@ -1,3 +1,9 @@
+#include <iostream>
+#include <cstdint>
+#include <cmath>
+#include <thread>
+#include <chrono>
+
 #include <stdio.h>
 #include <string.h>
 #include "MPU9250.hpp"
@@ -5,6 +11,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+static const char* dev_name = "/dev/i2c-1";
 
 double delta_t(struct timeval tim, struct timeval tim0){
 	long dt, dt_usec;
@@ -14,65 +21,48 @@ double delta_t(struct timeval tim, struct timeval tim0){
 }
 
 int main(){
-	int i, ret;
-	char str[256];
-	short acc[3];
-	short rot[3];
-	short mag[3];
-	short temp;
-	int Acc[3];
+	int mag[3];
+	double fix[3];
+	double pi = acos(-1.0);
+	int maxMagx = -99999;
+    int maxMagy = -99999;
+    int minMagx = 99999;
+    int minMagy = 99999;
+	int offsetx, offsety;
+	MPU9250 sensor(dev_name);
 
-	MPU9250 sensor;
-
-	struct timeval tim, tim0;
-
-	Acc[0] = Acc[1] = Acc[2] = 0;
-
-//Init MPU9250
-//Check connection (Acc/Gyro/Temp)
-	ret = sensor.CheckConnection(); 
-	if( ret ){
-		printf("MPU9250 detected\n");
-	}else{
-		printf("MPU9250 not found\n");
+	if(sensor.CheckConnection_Mag() != 1)
+		return -1;
+	
+	if(sensor.ReadData_Mag(mag) != 1){
 		return -1;
 	}
-
-
-	sensor.Init();	//Enable Magnetometer	<font color="red"> センサー初期化（磁気センサを有効にする)　</font>
-
-//Check connection (Magnetometer)
-	ret = sensor.CheckConnection(); 
-	ret = sensor.CheckConnection_Mag();
-	if( ret ){
-		printf("MPU9250(Magnetometer) detected\n");
-	}else{
-		printf("MPU9250(Magnetometer) not found\n");
-		return -1;
+	while(1){
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		if(sensor.ReadData_Mag(mag) == 1){
+			std::cout << "mag x " << mag[0] << " mag y " << mag[1] << " mag z " << mag[2] << std::endl;
+			if(maxMagx < mag[0]){
+				maxMagx = mag[0];
+			}
+			if(minMagx > mag[0]){
+				minMagx = mag[0];
+			}
+			if(maxMagy < mag[1]){
+				maxMagy = mag[1];
+			}
+			if(minMagy > mag[1]){
+				minMagy = mag[1];
+			}
+			
+			offsetx = (maxMagx + minMagx) / 2;
+			offsety = (maxMagy + minMagy) / 2;
+			std::cout << "max " << maxMagx << " " << maxMagy << std::endl;
+			std::cout << "min " << minMagx << " " << minMagy << std::endl;
+			std::cout << "off " << offsetx << " " << offsety << std::endl;
+			auto deg = std::atan2((double)(mag[0] - offsetx), (double)(mag[1] - offsety));
+			deg = deg * 180.0 / pi;
+			std::cout << deg << std::endl;
+		}
 	}
-
-//Setting (Acc/Gyro .. FullScale & Sample Rate)
-	sensor.SetAccFullScale( Acc_FS_4G ); 
-	sensor.SetGyroFullScale( Gyro_FS_250dps );
-	sensor.SetAccRate( Acc_BW460Hz_SR1k ); 
-	sensor.SetGyroRate( Gyro_BW250Hz_SR8k );
-
-
-	ret = sensor.ReadData(&tim0, acc, rot, &temp); 
-
-	for(i=0; i<100 ;i++){
-		usleep(10*1000);
-
-		ret = sensor.ReadData(&tim, acc, rot, &temp); 
-		ret = sensor.ReadData_Mag( mag );
-
-		printf("%lf, acc=(%d,%d,%d), rot=(%d,%d,%d), temp=%d, mag=(%d,%d,%d)\n",
-			delta_t(tim, tim0),
-			acc[0], acc[1], acc[2],
-			rot[0], rot[1], rot[2],
-			temp,
-			mag[0], mag[1], mag[2]
-		);
-	}
-
+	
 }
