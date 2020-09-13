@@ -65,7 +65,7 @@ private:
 	int fd;
 	int magRange;
 	double magCoefficient16;
-	unsigned char Reg_Conf, Reg_GyroConf, Reg_AccConf, Reg_AccConf2;
+	uint8_t Reg_Conf, Reg_GyroConf, Reg_AccConf, Reg_AccConf2;
 	int write(uint8_t reg_addr, uint8_t *data, uint16_t length);
 	int read(uint8_t reg_addr, uint8_t *data, uint16_t length);
 	int writeMag(uint8_t reg_addr, uint8_t *data, uint16_t length);
@@ -78,8 +78,7 @@ public:
 	int CheckConnection();
 	int Init();
 	
-	int ReadData(struct timeval* tim, short acc[], short rot[], short* temp);
-	int ReadData(short acc[], short rot[], short* temp);
+	void ReadData(int acc[], int rot[]);
 	int SetAccFullScale(AccFS_t);
 	int SetGyroFullScale(GyroFS_t);
 	int SetAccRate(AccRate_t);

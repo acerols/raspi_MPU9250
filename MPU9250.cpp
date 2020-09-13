@@ -126,9 +126,24 @@ int MPU9250::read(uint8_t reg_addr, uint8_t *data, uint16_t length)
     return 0;
 }
 
+void MPU9250::ReadData(int acc[], int rot[])
+{
+	uint8_t buf[14];
+
+	read(MPU9250_ACCEL_XOUT_H, buf, 14);
+
+    acc[0] = (int)((short)(buf[0] << 8) | buf[1]);
+    acc[1] = (int)((short)(buf[2] << 8) | buf[3]);
+    acc[2] = (int)((short)(buf[4] << 8) | buf[5]);
+
+    rot[0] = (int)((short)(buf[8] << 8) | buf[9]);
+    rot[1] = (int)((short)(buf[10] << 8) | buf[11]);
+    rot[2] = (int)((short)(buf[12] << 8) | buf[13]);
+}
+
 
 int MPU9250::SetAccFullScale(AccFS_t fs){
-	unsigned char b;
+	uint8_t b;
 	switch(fs){
 		case Acc_FS_2G:
 			b = 0x00; 	
@@ -155,7 +170,7 @@ int MPU9250::SetAccFullScale(AccFS_t fs){
 }
 
 int MPU9250::SetGyroFullScale(GyroFS_t fs){
-	unsigned char b;
+	uint8_t b;
 	switch(fs){
 		case Gyro_FS_250dps:
 			b = 0x00; 	
@@ -182,7 +197,7 @@ int MPU9250::SetGyroFullScale(GyroFS_t fs){
 }
 
 int MPU9250::SetAccRate( AccRate_t rate ){
-	unsigned char b;
+	uint8_t b;
 	b = 0;
 	switch(rate){
 		case Acc_BW1130Hz_SR4k:
@@ -220,7 +235,7 @@ int MPU9250::SetAccRate( AccRate_t rate ){
 
 
 int MPU9250::SetGyroRate( GyroRate_t rate ){
-	unsigned char b, c;
+	uint8_t b, c;
 	b = c = 0;
 	switch(rate){
 		case Gyro_BW8800Hz_SR32k:
