@@ -1,10 +1,35 @@
+/*
+MIT License
+
+Copyright (c) 2020 Yuto Kaihara
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+https://github.com/acerols/raspi_MPU9250
+*/
+
 #include <cmath>
 #include <iostream>
 #include <cstring>
 #include <thread>
 #include <chrono>
-
-#include "MPU9250.hpp"
+#include <algorithm>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -12,7 +37,7 @@
 #include <linux/i2c-dev.h>
 #include <linux/i2c.h>
 
-
+#include "MPU9250.hpp"
 
 MPU9250::MPU9250(const char *DEV_NAME)
 {
@@ -23,6 +48,7 @@ MPU9250::MPU9250(const char *DEV_NAME)
     dev_addr_mag = 0x0c;
     magRange = 4912;
     magCoefficient16 = magRange / 32760.0;
+    accelRange = gyroRange = 0;
 
 
     fd = open(DEV_NAME, O_RDWR);
@@ -61,6 +87,11 @@ int MPU9250::Init()
 
     data = 0x16;
     write(MPU9250_MAG_CNTL, &data, 1);
+
+    SetAccFullScale(Acc_FS_8G);    
+    SetGyroFullScale(Gyro_FS_1000dps);
+
+    calibration();
 
     return 0;
 
@@ -132,35 +163,78 @@ void MPU9250::ReadData(int acc[], int rot[])
 
 	read(MPU9250_ACCEL_XOUT_H, buf, 14);
 
-    acc[0] = (int)((short)(buf[0] << 8) | buf[1]);
-    acc[1] = (int)((short)(buf[2] << 8) | buf[3]);
-    acc[2] = (int)((short)(buf[4] << 8) | buf[5]);
+    acc[0] = (int)((short)(buf[0] << 8) | (short)buf[1]);
+    acc[1] = (int)((short)(buf[2] << 8) | (short)buf[3]);
+    acc[2] = (int)((short)(buf[4] << 8) | (short)buf[5]);
 
+    
+    acc[0] = acc[0] + offsetAccX;
+    acc[1] = acc[1] + offsetAccY;
+    acc[2] = acc[2] + offsetAccZ;
+    
     rot[0] = (int)((short)(buf[8] << 8) | buf[9]);
     rot[1] = (int)((short)(buf[10] << 8) | buf[11]);
     rot[2] = (int)((short)(buf[12] << 8) | buf[13]);
+
+    rot[0] = rot[0] + offsetRotX;
+    rot[1] = rot[1] + offsetRotY;
+    rot[2] = rot[2] + offsetRotZ;
+
 }
 
+void MPU9250::calibration(int count)
+{
+    int sumAcc[3] = {0};
+    int sumRot[3] = {0};
+    int acc[3];
+    int rot[3];
+    offsetAccX = offsetAccY = offsetAccZ = 0;
+    offsetRotX = offsetRotY = offsetRotZ = 0;
+    for(auto i = 0; i < count; i++){
+        ReadData(acc,rot);
+        sumAcc[0] += acc[0];
+        sumAcc[1] += acc[1];
+        sumAcc[2] += acc[2];
+        sumRot[0] += rot[0];
+        sumRot[1] += rot[1];
+        sumRot[2] += rot[2]; 
+    }
+
+    offsetAccX = -1.0 * sumAcc[0] / count;
+    offsetAccY = -1.0 * sumAcc[1] / count;
+    offsetAccZ = -1.0 * sumAcc[2] / count;
+
+    offsetRotX = -1.0 * sumRot[0] / count;
+    offsetRotY = -1.0 * sumRot[1] / count;
+    offsetRotZ = -1.0 * sumRot[2] / count;
+
+}
 
 int MPU9250::SetAccFullScale(AccFS_t fs){
 	uint8_t b;
 	switch(fs){
 		case Acc_FS_2G:
+            accelRange = 2;
 			b = 0x00; 	
 			break;
 		case Acc_FS_4G:
+            accelRange = 4;
 			b = 0x01 << 3;
 			break;
 		case Acc_FS_8G:
+            accelRange = 8;
 			b = 0x02 << 3;
 			break;
 		case Acc_FS_16G:
+            accelRange = 16;
 			b = 0x03 << 3;
 			break;
 		default:
 			b = 0;
 		break;
 	}
+
+    accelCoefficient = accelRange / (double)((int)0x8000);
 
 	Reg_AccConf &= ~(0x03 << 3);
 	Reg_AccConf |= b;
@@ -173,21 +247,27 @@ int MPU9250::SetGyroFullScale(GyroFS_t fs){
 	uint8_t b;
 	switch(fs){
 		case Gyro_FS_250dps:
+            gyroRange = 250;
 			b = 0x00; 	
 			break;
 		case Gyro_FS_500dps:
+            gyroRange = 500;
 			b = 0x01 << 3;
 			break;
 		case Gyro_FS_1000dps:
+            gyroRange = 1000;
 			b = 0x02 << 3;
 			break;
 		case Gyro_FS_2000dps:
+            gyroRange = 2000;
 			b = 0x03 << 3;
 			break;
 		default:
 			b = 0;
 		break;
 	}
+
+    gyroCoefficient = gyroRange / (double)((int)0x8000);
 
 	Reg_GyroConf &= ~(0x03 << 3);
 	Reg_GyroConf |= b;
@@ -385,6 +465,10 @@ int MPU9250::ReadData_Mag(int mag[])
         mag[2] = (int)(short)((buf[5] << 8) & 0xff00) | (buf[4] & 0xff);
     }
 
+    mag[0] = mag[0] + offsetMagX;
+    mag[1] = mag[1] + offsetMagY;
+    mag[2] = mag[2] + offsetMagZ;
+
     st2 = buf[6];
     if(st2 & (1 << 3)){
         readMag(MPU9250_MAG_CNTL, &status, 1);
@@ -397,10 +481,63 @@ int MPU9250::ReadData_Mag(int mag[])
     
 }
 
-void MPU9250::Magfix(int mag[], double fix[])
+void MPU9250::CalibMag(int count)
+{
+    int mag[3];
+
+    int maxMagX, maxMagY, maxMagZ;
+    int minMagX, minMagY, minMagZ;
+    maxMagX = maxMagY = maxMagZ = -999999;
+    minMagX = minMagY = minMagZ = 999999;
+    offsetMagX = offsetMagY = offsetMagZ = 0;
+
+    std::cout << "start" << std::endl;
+
+    for(auto i = 0; i < count; i++){
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::cout << "";
+		if(ReadData_Mag(mag) == 1){
+			maxMagX = std::max(maxMagX, mag[0]);
+            minMagX = std::min(minMagX, mag[0]);
+            maxMagY = std::max(maxMagY, mag[1]);
+            minMagY = std::min(minMagY, mag[1]);
+            maxMagZ = std::max(maxMagZ, mag[2]);
+            minMagZ = std::min(minMagZ, mag[2]);
+        }
+    }
+    offsetMagX = -1.0 * (maxMagX + minMagX) / 2;
+	offsetMagY = -1.0 * (maxMagY + minMagY) / 2;
+    offsetMagZ = -1.0 * (maxMagZ + minMagZ) / 2;
+
+    std::cout << "offset X " << offsetMagX << " Y " << offsetMagY << " Z " << offsetMagZ << std::endl;
+
+}
+
+void MPU9250::SetOffsetMag(int x, int y, int z)
+{
+    offsetMagX = x;
+    offsetMagY = y;
+    offsetMagZ = z;
+}
+
+void MPU9250::MagFix(int mag[], double fix[])
 {
     for(int i = 0; i < 3; i++){
         fix[i] = (double)mag[i] * magCoefficient16;
+    }
+}
+
+void MPU9250::AccFix(int acc[], double fix[])
+{
+    for(int i = 0; i < 3; i++){
+        fix[i] = (double)acc[i] * accelCoefficient;
+    }
+}
+
+void MPU9250::GyroFix(int rot[], double fix[])
+{
+    for(int i = 0; i < 3; i++){
+        fix[i] = (double)rot[i] * gyroCoefficient;
     }
 }
 

@@ -22,44 +22,36 @@ double delta_t(struct timeval tim, struct timeval tim0){
 
 int main(){
 	int mag[3];
-	double fix[3];
+	int acc[3], rot[3];
+	double dmag[3], dacc[3], drot[3];
 	double pi = acos(-1.0);
-	int maxMagx = -99999;
-    int maxMagy = -99999;
-    int minMagx = 99999;
-    int minMagy = 99999;
-	int offsetx, offsety;
 	MPU9250 sensor(dev_name);
 
+	sensor.SetOffsetMag(245, -101, -253);
+	
 	if(sensor.CheckConnection_Mag() != 1)
 		return -1;
 	
 	if(sensor.ReadData_Mag(mag) != 1){
 		return -1;
 	}
+
 	while(1){
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if(sensor.ReadData_Mag(mag) == 1){
+			sensor.ReadData(acc, rot);
+			sensor.AccFix(acc, dacc);
+			sensor.GyroFix(rot, drot);
+			sensor.MagFix(mag, dmag);
+			std::cout << "acc x " << acc[0] << " acc y " << acc[1] << " acc z " << acc[2] << std::endl;
+			std::cout << "rot x " << rot[0] << " rot x " << rot[1] << " rot z " << rot[2] << std::endl;
 			std::cout << "mag x " << mag[0] << " mag y " << mag[1] << " mag z " << mag[2] << std::endl;
-			if(maxMagx < mag[0]){
-				maxMagx = mag[0];
-			}
-			if(minMagx > mag[0]){
-				minMagx = mag[0];
-			}
-			if(maxMagy < mag[1]){
-				maxMagy = mag[1];
-			}
-			if(minMagy > mag[1]){
-				minMagy = mag[1];
-			}
-			
-			offsetx = (maxMagx + minMagx) / 2;
-			offsety = (maxMagy + minMagy) / 2;
-			std::cout << "max " << maxMagx << " " << maxMagy << std::endl;
-			std::cout << "min " << minMagx << " " << minMagy << std::endl;
-			std::cout << "off " << offsetx << " " << offsety << std::endl;
-			auto deg = std::atan2((double)(mag[0] - offsetx), (double)(mag[1] - offsety));
+
+			std::cout << "d acc x " << dacc[0] << " d acc y " << dacc[1] << " d acc z " << dacc[2] << std::endl;
+			std::cout << "d rot x " << drot[0] << " d rot x " << drot[1] << " d rot z " << drot[2] << std::endl;
+			std::cout << "d mag x " << dmag[0] << " d mag y " << dmag[1] << " d mag z " << dmag[2] << std::endl;
+
+			auto deg = std::atan2((double)(mag[0]), (double)(mag[1]));
 			deg = deg * 180.0 / pi;
 			std::cout << deg << std::endl;
 		}

@@ -1,3 +1,29 @@
+/*
+MIT License
+
+Copyright (c) 2020 Yuto Kaihara
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+https://github.com/acerols/raspi_MPU9250
+*/
+
 #ifndef __MPU9250_H__
 #define __MPU9250_H__
 extern "C"{
@@ -64,8 +90,13 @@ private:
 	uint8_t dev_addr_mag;
 	int fd;
 	int magRange;
-	double magCoefficient16;
+	double magCoefficient16, accelCoefficient, gyroCoefficient;
+	int accelRange, gyroRange;
 	uint8_t Reg_Conf, Reg_GyroConf, Reg_AccConf, Reg_AccConf2;
+	int offsetAccX, offsetAccY, offsetAccZ;
+	int offsetRotX, offsetRotY, offsetRotZ;
+	int offsetMagX, offsetMagY, offsetMagZ;
+	void calibration(int count=1000);
 	int write(uint8_t reg_addr, uint8_t *data, uint16_t length);
 	int read(uint8_t reg_addr, uint8_t *data, uint16_t length);
 	int writeMag(uint8_t reg_addr, uint8_t *data, uint16_t length);
@@ -84,10 +115,15 @@ public:
 	int SetAccRate(AccRate_t);
 	int SetGyroRate(GyroRate_t);
 	
+
 	int isDataReady_Mag();
 	int CheckConnection_Mag();
 	int ReadData_Mag(int mag[]);
-	void Magfix(int mag[], double fix[]);
+	void CalibMag(int count=500);
+	void SetOffsetMag(int x, int y, int z);
+	void MagFix(int mag[], double fix[]);
+	void AccFix(int acc[], double fix[]);
+	void GyroFix(int rot[], double fix[]);
 
 };
 
