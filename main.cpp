@@ -51,7 +51,7 @@ int main(){
 			std::cout << "d rot x " << drot[0] << " d rot x " << drot[1] << " d rot z " << drot[2] << std::endl;
 			std::cout << "d mag x " << dmag[0] << " d mag y " << dmag[1] << " d mag z " << dmag[2] << std::endl;
 
-			auto deg = std::atan2((double)(mag[0]), (double)(mag[1]));
+			auto deg = std::atan2(dmag[0], dmag[1]);
 			deg = deg * 180.0 / pi;
 			std::cout << deg << std::endl;
 		}
